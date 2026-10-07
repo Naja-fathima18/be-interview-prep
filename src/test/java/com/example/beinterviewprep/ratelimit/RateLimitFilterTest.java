@@ -83,6 +83,25 @@ class RateLimitFilterTest {
   }
 
   @Test
+  void rejectsOverlongApiKeyAsUnauthorizedWithoutTrackingIt() throws Exception {
+    String overlongKey = "k".repeat(RateLimitFilter.MAX_API_KEY_LENGTH + 1);
+
+    mockMvc
+        .perform(get(RANDOM_QUOTE).header("X-API-Key", overlongKey))
+        .andExpect(status().isUnauthorized())
+        .andExpect(header().doesNotExist(RateLimitFilter.LIMIT_HEADER))
+        .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+        .andExpect(jsonPath("$.detail").value("Invalid API key"));
+  }
+
+  @Test
+  void acceptsApiKeyAtMaximumLength() throws Exception {
+    String longestKey = uniqueKey() + "k".repeat(RateLimitFilter.MAX_API_KEY_LENGTH - 40);
+
+    mockMvc.perform(get(RANDOM_QUOTE).header("X-API-Key", longestKey)).andExpect(status().isOk());
+  }
+
+  @Test
   void leavesPathsOutsideConfiguredPatternsUnlimited() throws Exception {
     mockMvc.perform(get("/api/other")).andExpect(status().isNotFound());
   }

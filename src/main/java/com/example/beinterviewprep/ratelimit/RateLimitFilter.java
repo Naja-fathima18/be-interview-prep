@@ -26,6 +26,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
   static final String LIMIT_HEADER = "X-RateLimit-Limit";
   static final String REMAINING_HEADER = "X-RateLimit-Remaining";
+  static final int MAX_API_KEY_LENGTH = 200;
 
   private final SlidingWindowRateLimiter limiter;
   private final RateLimitProperties properties;
@@ -56,10 +57,18 @@ public class RateLimitFilter extends OncePerRequestFilter {
       throws ServletException, IOException {
     String apiKey = request.getHeader(properties.header());
     if (apiKey == null || apiKey.isBlank()) {
-      writeProblem(request, response, missingApiKeyProblem());
+      writeProblem(
+          request,
+          response,
+          unauthorizedProblem("Missing API key in header '" + properties.header() + "'"));
       return;
     }
-    RateLimitDecision decision = limiter.tryAcquire(apiKey.strip());
+    String key = apiKey.strip();
+    if (key.length() > MAX_API_KEY_LENGTH) {
+      writeProblem(request, response, unauthorizedProblem("Invalid API key"));
+      return;
+    }
+    RateLimitDecision decision = limiter.tryAcquire(key);
     response.setHeader(LIMIT_HEADER, String.valueOf(decision.limit()));
     response.setHeader(REMAINING_HEADER, String.valueOf(decision.remaining()));
     if (!decision.allowed()) {
@@ -71,10 +80,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
     chain.doFilter(request, response);
   }
 
-  private ProblemDetail missingApiKeyProblem() {
-    ProblemDetail problem =
-        ProblemDetail.forStatusAndDetail(
-            HttpStatus.UNAUTHORIZED, "Missing API key in header '" + properties.header() + "'");
+  private ProblemDetail unauthorizedProblem(String detail) {
+    ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, detail);
     problem.setTitle("Unauthorized");
     return problem;
   }
