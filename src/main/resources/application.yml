@@ -26,3 +26,9 @@ app:
   file-storage:
     base-dir: storage/files
     max-file-size: 5MB
+
+rate-limit:
+  limit: 10
+  window: 1m
+  header: X-API-Key
+  paths: /api/quotes/**
