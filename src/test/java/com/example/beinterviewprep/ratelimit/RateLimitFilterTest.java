@@ -102,7 +102,7 @@ class RateLimitFilterTest {
   }
 
   @Test
-  void leavesPathsOutsideConfiguredPatternsUnlimited() throws Exception {
+  void doesNotRequireApiKeyOutsideProtectedPaths() throws Exception {
     mockMvc.perform(get("/api/other")).andExpect(status().isNotFound());
   }
 
