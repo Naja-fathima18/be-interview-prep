@@ -11,7 +11,7 @@ public enum Category {
 
   @JsonCreator
   public static Category fromValue(String value) {
-    if (value == null) {
+    if (value == null || value.isBlank()) {
       return null;
     }
     return Category.valueOf(value.trim().toUpperCase(Locale.ROOT));

@@ -76,7 +76,17 @@ class ExpenseApiTest {
   void rejectsSummaryWithMalformedMonth() throws Exception {
     mockMvc
         .perform(get("/api/expenses/summary").param("month", "2026-13"))
-        .andExpect(status().isBadRequest());
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.title").value("Bad request"))
+        .andExpect(jsonPath("$.detail").value("Invalid value for parameter 'month'"));
+  }
+
+  @Test
+  void rejectsSummaryWithoutMonth() throws Exception {
+    mockMvc
+        .perform(get("/api/expenses/summary"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.detail").value(containsString("month")));
   }
 
   @Test
@@ -154,7 +164,8 @@ class ExpenseApiTest {
             post("/api/expenses")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json("1.00", "GROCERIES", "2026-02-03", null)))
-        .andExpect(status().isBadRequest());
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.title").value("Bad Request"));
   }
 
   @Test
@@ -182,7 +193,49 @@ class ExpenseApiTest {
   void rejectsListWhenFromIsAfterTo() throws Exception {
     mockMvc
         .perform(get("/api/expenses").param("from", "2026-03-12").param("to", "2026-03-10"))
-        .andExpect(status().isBadRequest());
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.title").value("Bad request"))
+        .andExpect(jsonPath("$.detail").value("Parameter 'from' must not be after 'to'"));
+  }
+
+  @Test
+  void rejectsListWithUnknownCategoryParameter() throws Exception {
+    mockMvc
+        .perform(get("/api/expenses").param("category", "groceries"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.detail").value("Invalid value for parameter 'category'"));
+  }
+
+  @Test
+  void treatsBlankCategoryParameterAsNoFilter() throws Exception {
+    create("1.00", "TRAVEL", "2026-03-09");
+    create("4.00", "FOOD", "2026-03-11");
+
+    mockMvc
+        .perform(get("/api/expenses").param("category", ""))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(2));
+  }
+
+  @Test
+  void returnsNotFoundWhenDeletingUnknownExpense() throws Exception {
+    mockMvc
+        .perform(delete("/api/expenses/999999"))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.title").value("Resource not found"))
+        .andExpect(jsonPath("$.detail").value("Expense 999999 not found"));
+  }
+
+  @Test
+  void rejectsNoteLongerThan500Characters() throws Exception {
+    mockMvc
+        .perform(
+            post("/api/expenses")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json("1.00", "FOOD", "2026-02-03", "x".repeat(501))))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.title").value("Validation failed"))
+        .andExpect(jsonPath("$.errors.note").exists());
   }
 
   @Test
