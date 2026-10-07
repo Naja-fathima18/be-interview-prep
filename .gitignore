@@ -32,8 +32,6 @@ build/
 ### VS Code ###
 .vscode/
 
-.claude/settings.local.json
-.claude/.cache/
-.claude/worktrees/
 storage/
 uploads/
+.claude/
