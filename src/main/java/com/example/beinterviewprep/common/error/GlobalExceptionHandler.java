@@ -15,6 +15,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
@@ -78,6 +79,24 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     ex.getBindingResult()
         .getGlobalErrors()
         .forEach(e -> errors.putIfAbsent(e.getObjectName(), e.getDefaultMessage()));
+    return ResponseEntity.badRequest().body(validationProblem(errors));
+  }
+
+  @Override
+  protected ResponseEntity<Object> handleHandlerMethodValidationException(
+      @NonNull HandlerMethodValidationException ex,
+      @NonNull HttpHeaders headers,
+      @NonNull HttpStatusCode status,
+      @NonNull WebRequest request) {
+    Map<String, String> errors = new LinkedHashMap<>();
+    ex.getParameterValidationResults()
+        .forEach(
+            result -> {
+              String name = result.getMethodParameter().getParameterName();
+              result
+                  .getResolvableErrors()
+                  .forEach(e -> errors.putIfAbsent(name, e.getDefaultMessage()));
+            });
     return ResponseEntity.badRequest().body(validationProblem(errors));
   }
 
