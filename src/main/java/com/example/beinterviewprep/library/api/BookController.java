@@ -34,9 +34,9 @@ public class BookController {
 
   @GetMapping
   public PageResponse<BookResponse> list(
-      @RequestParam(name = "q", required = false) @Size(max = 255) String query,
+      @RequestParam(required = false) @Size(max = 255) String q,
       @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.ASC) Pageable pageable) {
-    return PageResponse.from(bookService.search(query, pageable), BookResponse::from);
+    return PageResponse.from(bookService.search(q, pageable), BookResponse::from);
   }
 
   @GetMapping("/{id}")

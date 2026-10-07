@@ -6,6 +6,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -94,5 +95,15 @@ class BookControllerTest {
         .perform(delete("/api/books/3"))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.detail").value(containsString("currently borrowed")));
+  }
+
+  @Test
+  void rejectsSearchQueryLongerThan255Characters() throws Exception {
+    mockMvc
+        .perform(get("/api/books").param("q", "x".repeat(256)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.title").value("Validation failed"))
+        .andExpect(jsonPath("$.errors.q").exists());
+    verifyNoInteractions(bookService);
   }
 }
