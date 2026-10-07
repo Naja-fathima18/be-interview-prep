@@ -13,13 +13,16 @@ import com.example.beinterviewprep.library.domain.Book;
 import com.example.beinterviewprep.library.domain.Loan;
 import com.example.beinterviewprep.library.persistence.BookRepository;
 import com.example.beinterviewprep.library.persistence.LoanRepository;
+import java.sql.SQLException;
 import java.time.Instant;
 import java.util.Optional;
+import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @ExtendWith(MockitoExtension.class)
 class LoanServiceTest {
@@ -33,7 +36,7 @@ class LoanServiceTest {
   @Test
   void borrowMarksBookUnavailableAndOpensLoan() {
     when(bookRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(book));
-    when(loanRepository.save(any(Loan.class))).thenAnswer(inv -> inv.getArgument(0));
+    when(loanRepository.saveAndFlush(any(Loan.class))).thenAnswer(inv -> inv.getArgument(0));
 
     Loan loan = loanService.borrow(1L, 42L);
 
@@ -50,7 +53,39 @@ class LoanServiceTest {
     assertThatThrownBy(() -> loanService.borrow(1L, 42L))
         .isInstanceOf(ConflictException.class)
         .hasMessageContaining("already borrowed");
-    verify(loanRepository, never()).save(any());
+    verify(loanRepository, never()).saveAndFlush(any());
+  }
+
+  @Test
+  void translatesOpenLoanIndexViolationIntoConflict() {
+    when(bookRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(book));
+    when(loanRepository.saveAndFlush(any(Loan.class)))
+        .thenThrow(integrityViolation("ux_loan_open_per_book"));
+
+    assertThatThrownBy(() -> loanService.borrow(1L, 42L))
+        .isInstanceOf(ConflictException.class)
+        .hasMessageContaining("already borrowed");
+  }
+
+  @Test
+  void rethrowsUnrelatedIntegrityViolationOnBorrow() {
+    when(bookRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(book));
+    DataIntegrityViolationException unrelated = integrityViolation("fk_loan_book");
+    when(loanRepository.saveAndFlush(any(Loan.class))).thenThrow(unrelated);
+
+    assertThatThrownBy(() -> loanService.borrow(1L, 42L)).isSameAs(unrelated);
+  }
+
+  @Test
+  void returnIsBasedOnTheOpenLoanEvenIfBookFlagDrifted() {
+    Loan active = new Loan(book, 42L, Instant.now());
+    when(bookRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(book));
+    when(loanRepository.findByBookIdAndReturnedAtIsNull(1L)).thenReturn(Optional.of(active));
+
+    Loan closed = loanService.giveBack(1L);
+
+    assertThat(closed.getReturnedAt()).isNotNull();
+    assertThat(book.isBorrowed()).isFalse();
   }
 
   @Test
@@ -81,5 +116,11 @@ class LoanServiceTest {
     assertThatThrownBy(() -> loanService.giveBack(1L))
         .isInstanceOf(ConflictException.class)
         .hasMessageContaining("not currently borrowed");
+  }
+
+  private static DataIntegrityViolationException integrityViolation(String constraint) {
+    return new DataIntegrityViolationException(
+        "violation",
+        new ConstraintViolationException("violation", new SQLException("duplicate"), constraint));
   }
 }
