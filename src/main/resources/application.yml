@@ -37,3 +37,4 @@ booking:
   hold-duration: 5m
   slot-length: 30m
   expiry-sweep-interval: 1m
+  clinic-zone: Asia/Kolkata

@@ -13,10 +13,11 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 public class BookingConfiguration {
 
   public static final String NOTIFICATION_EXECUTOR = "bookingNotificationExecutor";
+  public static final String CLOCK = "bookingClock";
 
-  @Bean
-  Clock clock() {
-    return Clock.systemDefaultZone();
+  @Bean(name = CLOCK)
+  Clock bookingClock(BookingProperties properties) {
+    return Clock.system(properties.clinicZone());
   }
 
   @Bean(name = NOTIFICATION_EXECUTOR)

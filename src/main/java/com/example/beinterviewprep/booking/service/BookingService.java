@@ -1,5 +1,6 @@
 package com.example.beinterviewprep.booking.service;
 
+import com.example.beinterviewprep.booking.BookingConfiguration;
 import com.example.beinterviewprep.booking.BookingProperties;
 import com.example.beinterviewprep.booking.domain.Booking;
 import com.example.beinterviewprep.booking.domain.BookingConfirmedEvent;
@@ -12,8 +13,8 @@ import com.example.beinterviewprep.common.error.NotFoundException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.ConcurrencyFailureException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -22,7 +23,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class BookingService {
 
   private final SlotService slotService;
@@ -31,11 +31,25 @@ public class BookingService {
   private final Clock clock;
   private final ApplicationEventPublisher events;
 
+  public BookingService(
+      SlotService slotService,
+      BookingRepository bookings,
+      BookingProperties properties,
+      @Qualifier(BookingConfiguration.CLOCK) Clock clock,
+      ApplicationEventPublisher events) {
+    this.slotService = slotService;
+    this.bookings = bookings;
+    this.properties = properties;
+    this.clock = clock;
+    this.events = events;
+  }
+
   @Transactional
   public Booking hold(Long doctorId, LocalDateTime startTime, Long patientId) {
     Doctor doctor = slotService.findDoctor(doctorId);
-    requireBookableSlot(doctor, startTime);
-    Instant now = clock.instant();
+    ClinicTime clinicNow = ClinicTime.now(clock);
+    requireBookableSlot(doctor, startTime, clinicNow.local());
+    Instant now = clinicNow.instant();
     bookings.expireStaleHoldForSlot(
         doctorId, startTime, now, BookingStatus.HELD, BookingStatus.EXPIRED);
     Booking hold =
@@ -89,12 +103,12 @@ public class BookingService {
     }
   }
 
-  private void requireBookableSlot(Doctor doctor, LocalDateTime startTime) {
+  private void requireBookableSlot(Doctor doctor, LocalDateTime startTime, LocalDateTime localNow) {
     if (!doctor.offersSlotAt(startTime, properties.slotLength())) {
       throw new BadRequestException(
           "Doctor " + doctor.getId() + " has no slot starting at " + startTime);
     }
-    if (!startTime.isAfter(LocalDateTime.now(clock))) {
+    if (!startTime.isAfter(localNow)) {
       throw new BadRequestException("Slot at " + startTime + " is in the past");
     }
   }

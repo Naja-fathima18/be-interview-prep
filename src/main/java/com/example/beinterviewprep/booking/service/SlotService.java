@@ -1,5 +1,6 @@
 package com.example.beinterviewprep.booking.service;
 
+import com.example.beinterviewprep.booking.BookingConfiguration;
 import com.example.beinterviewprep.booking.BookingProperties;
 import com.example.beinterviewprep.booking.domain.Booking;
 import com.example.beinterviewprep.booking.domain.Doctor;
@@ -13,12 +14,11 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@RequiredArgsConstructor
 public class SlotService {
 
   private final DoctorRepository doctors;
@@ -26,14 +26,24 @@ public class SlotService {
   private final BookingProperties properties;
   private final Clock clock;
 
+  public SlotService(
+      DoctorRepository doctors,
+      BookingRepository bookings,
+      BookingProperties properties,
+      @Qualifier(BookingConfiguration.CLOCK) Clock clock) {
+    this.doctors = doctors;
+    this.bookings = bookings;
+    this.properties = properties;
+    this.clock = clock;
+  }
+
   @Transactional(readOnly = true)
   public List<AvailableSlot> availableSlots(Long doctorId, LocalDate date) {
     Doctor doctor = findDoctor(doctorId);
-    Instant now = clock.instant();
-    LocalDateTime localNow = LocalDateTime.now(clock);
-    Set<LocalDateTime> occupied = occupiedStarts(doctorId, date, now);
+    ClinicTime now = ClinicTime.now(clock);
+    Set<LocalDateTime> occupied = occupiedStarts(doctorId, date, now.instant());
     return doctor.slotStartsOn(date, properties.slotLength()).stream()
-        .filter(start -> start.isAfter(localNow))
+        .filter(start -> start.isAfter(now.local()))
         .filter(start -> !occupied.contains(start))
         .map(start -> new AvailableSlot(start, start.plus(properties.slotLength())))
         .toList();

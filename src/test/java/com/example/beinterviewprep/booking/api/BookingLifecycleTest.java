@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.example.beinterviewprep.booking.BookingIntegrationTestSupport;
 import com.jayway.jsonpath.JsonPath;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -136,6 +137,20 @@ class BookingLifecycleTest extends BookingIntegrationTestSupport {
   @Test
   void holdInThePastIsBadRequest() throws Exception {
     hold(TOMORROW.minusDays(1).atTime(7, 30), PATIENT).andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void slotsAlreadyPastInTheClinicTimeZoneAreHiddenAndRejected() throws Exception {
+    clock.setInstant(Instant.parse("2030-01-15T04:00:00Z"));
+
+    mockMvc
+        .perform(get("/api/doctors/{id}/slots", DOCTOR_ID).param("date", "2030-01-15"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.slots[0].startTime").value(TEN_AM))
+        .andExpect(jsonPath("$.slots[*].startTime", not(hasItem("2030-01-15T09:30:00"))));
+    hold(TOMORROW.atTime(9, 0), PATIENT).andExpect(status().isBadRequest());
+    hold(TOMORROW.atTime(9, 30), PATIENT).andExpect(status().isBadRequest());
+    hold(TEN_AM_TOMORROW, PATIENT).andExpect(status().isCreated());
   }
 
   @Test
