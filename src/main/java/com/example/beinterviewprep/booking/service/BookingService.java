@@ -98,7 +98,7 @@ public class BookingService {
   private void flushGuardingAgainstConcurrentChange(Long bookingId) {
     try {
       bookings.flush();
-    } catch (DataIntegrityViolationException | ConcurrencyFailureException e) {
+    } catch (ConcurrencyFailureException e) {
       throw new ConflictException("Booking " + bookingId + " was changed concurrently");
     }
   }
