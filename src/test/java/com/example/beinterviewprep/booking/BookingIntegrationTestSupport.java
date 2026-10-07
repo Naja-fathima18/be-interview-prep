@@ -11,6 +11,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.convention.TestBean;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
@@ -31,6 +32,7 @@ public abstract class BookingIntegrationTestSupport {
   protected MutableClock clock;
 
   @Autowired protected BookingRepository bookingRepository;
+  @Autowired private JdbcTemplate jdbcTemplate;
   @MockitoBean protected BookingNotifier bookingNotifier;
 
   @BeforeEach
@@ -38,6 +40,17 @@ public abstract class BookingIntegrationTestSupport {
     bookingRepository.deleteAllInBatch();
     clock = (MutableClock) bookingClock;
     clock.setInstant(NOW);
+  }
+
+  protected long activeBookingsForSlot(LocalDateTime startTime) {
+    Long count =
+        jdbcTemplate.queryForObject(
+            "select count(*) from booking where doctor_id = ? and start_time = ?"
+                + " and status in ('HELD', 'CONFIRMED')",
+            Long.class,
+            DOCTOR_ID,
+            startTime);
+    return count == null ? 0 : count;
   }
 
   static Clock clinicClock() {

@@ -25,7 +25,7 @@ class HoldExpiryServiceTest extends BookingIntegrationTestSupport {
 
     assertThat(statusOf(stale)).isEqualTo(BookingStatus.EXPIRED);
     assertThat(statusOf(fresh)).isEqualTo(BookingStatus.HELD);
-    assertThat(bookingRepository.countActiveForSlot(DOCTOR_ID, TEN_AM_TOMORROW)).isZero();
+    assertThat(activeBookingsForSlot(TEN_AM_TOMORROW)).isZero();
   }
 
   @Test

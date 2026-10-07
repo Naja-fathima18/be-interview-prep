@@ -31,21 +31,6 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     return findActiveForDoctorBetween(doctorId, from, to, BookingStatus.ACTIVE);
   }
 
-  @Query(
-      """
-      select count(b) from Booking b
-      where b.doctorId = :doctorId and b.startTime = :startTime
-        and b.status in :activeStatuses
-      """)
-  long countActiveForSlot(
-      @Param("doctorId") Long doctorId,
-      @Param("startTime") LocalDateTime startTime,
-      @Param("activeStatuses") Collection<BookingStatus> activeStatuses);
-
-  default long countActiveForSlot(Long doctorId, LocalDateTime startTime) {
-    return countActiveForSlot(doctorId, startTime, BookingStatus.ACTIVE);
-  }
-
   @Modifying(flushAutomatically = true, clearAutomatically = true)
   @Query(
       """

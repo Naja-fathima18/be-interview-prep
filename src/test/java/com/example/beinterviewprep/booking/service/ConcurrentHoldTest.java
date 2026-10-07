@@ -32,7 +32,7 @@ class ConcurrentHoldTest extends BookingIntegrationTestSupport {
         .filteredOn(outcome -> !outcome.held())
         .hasSize(PATIENTS - 1)
         .allSatisfy(outcome -> assertThat(outcome.failure()).isInstanceOf(ConflictException.class));
-    assertThat(bookingRepository.countActiveForSlot(DOCTOR_ID, TEN_AM_TOMORROW)).isEqualTo(1);
+    assertThat(activeBookingsForSlot(TEN_AM_TOMORROW)).isEqualTo(1);
   }
 
   @Test
@@ -43,7 +43,7 @@ class ConcurrentHoldTest extends BookingIntegrationTestSupport {
     List<Outcome> outcomes = holdSameSlotConcurrently(PATIENTS);
 
     assertThat(outcomes).filteredOn(Outcome::held).hasSize(1);
-    assertThat(bookingRepository.countActiveForSlot(DOCTOR_ID, TEN_AM_TOMORROW)).isEqualTo(1);
+    assertThat(activeBookingsForSlot(TEN_AM_TOMORROW)).isEqualTo(1);
   }
 
   private List<Outcome> holdSameSlotConcurrently(int patients) throws Exception {
