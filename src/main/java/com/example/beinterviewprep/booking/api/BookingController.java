@@ -4,6 +4,7 @@ import com.example.beinterviewprep.booking.service.BookingService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,5 +23,16 @@ public class BookingController {
   BookingResponse hold(@Valid @RequestBody HoldRequest request) {
     return BookingResponse.from(
         bookingService.hold(request.doctorId(), request.startTime(), request.patientId()));
+  }
+
+  @PostMapping("/{bookingId}/confirm")
+  BookingResponse confirm(
+      @PathVariable Long bookingId, @Valid @RequestBody PatientRequest request) {
+    return BookingResponse.from(bookingService.confirm(bookingId, request.patientId()));
+  }
+
+  @PostMapping("/{bookingId}/cancel")
+  BookingResponse cancel(@PathVariable Long bookingId, @Valid @RequestBody PatientRequest request) {
+    return BookingResponse.from(bookingService.cancel(bookingId, request.patientId()));
   }
 }

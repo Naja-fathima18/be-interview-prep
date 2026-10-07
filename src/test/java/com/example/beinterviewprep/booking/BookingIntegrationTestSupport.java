@@ -7,12 +7,14 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 
+@AutoConfigureMockMvc
 @SpringBootTest(properties = "booking.expiry-sweep-interval=1h")
 @Import(BookingIntegrationTestSupport.ClockConfiguration.class)
 public abstract class BookingIntegrationTestSupport {

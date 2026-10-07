@@ -7,6 +7,7 @@ import com.example.beinterviewprep.booking.domain.Doctor;
 import com.example.beinterviewprep.booking.persistence.BookingRepository;
 import com.example.beinterviewprep.common.error.BadRequestException;
 import com.example.beinterviewprep.common.error.ConflictException;
+import com.example.beinterviewprep.common.error.NotFoundException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -48,6 +49,39 @@ public class BookingService {
       return saved;
     } catch (DataIntegrityViolationException | ConcurrencyFailureException e) {
       throw slotTaken(doctorId, startTime);
+    }
+  }
+
+  @Transactional
+  public Booking confirm(Long bookingId, Long patientId) {
+    Booking booking = findOwnedBy(bookingId, patientId);
+    booking.confirm(clock.instant());
+    flushGuardingAgainstConcurrentChange(bookingId);
+    log.info("Booking {} confirmed", bookingId);
+    return booking;
+  }
+
+  @Transactional
+  public Booking cancel(Long bookingId, Long patientId) {
+    Booking booking = findOwnedBy(bookingId, patientId);
+    booking.cancel(clock.instant());
+    flushGuardingAgainstConcurrentChange(bookingId);
+    log.info("Booking {} cancelled", bookingId);
+    return booking;
+  }
+
+  private Booking findOwnedBy(Long bookingId, Long patientId) {
+    return bookings
+        .findById(bookingId)
+        .filter(booking -> booking.belongsTo(patientId))
+        .orElseThrow(() -> new NotFoundException("Booking " + bookingId + " not found"));
+  }
+
+  private void flushGuardingAgainstConcurrentChange(Long bookingId) {
+    try {
+      bookings.flush();
+    } catch (DataIntegrityViolationException | ConcurrencyFailureException e) {
+      throw new ConflictException("Booking " + bookingId + " was changed concurrently");
     }
   }
 
