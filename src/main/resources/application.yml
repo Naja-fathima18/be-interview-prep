@@ -2,9 +2,9 @@ spring:
   application:
     name: be-interview-prep
   datasource:
-    url: jdbc:h2:mem:app;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1
-    username: sa
-    password:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/app}
+    username: ${DB_USERNAME:app}
+    password: ${DB_PASSWORD:app}
   jpa:
     open-in-view: false
     hibernate:
@@ -14,3 +14,6 @@ spring:
   mvc:
     problemdetails:
       enabled: true
+  docker:
+    compose:
+      lifecycle-management: start-only

@@ -1,0 +1,12 @@
+spring:
+  datasource:
+    url: jdbc:tc:postgresql:16-alpine:///app
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+    username: test
+    password: test
+  test:
+    database:
+      replace: none
+  docker:
+    compose:
+      enabled: false

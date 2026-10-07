@@ -2,15 +2,17 @@
 
 Five Spring Boot features, each delivered as its own pull request.
 
-**Stack:** Java 21, Spring Boot 3.5, Maven (wrapper), Spring Data JPA, Flyway, H2 (in-memory, PostgreSQL mode), JUnit 5 + AssertJ + MockMvc.
+**Stack:** Java 21, Spring Boot 3.5, Maven (wrapper), Spring Data JPA, Flyway, PostgreSQL 16 (Docker), Testcontainers, JUnit 5 + AssertJ + MockMvc.
+
+Requires Docker running (Docker Desktop on Windows/macOS).
 
 ## Run
 
 ```bash
-./mvnw spring-boot:run          # app on http://localhost:8080
+./mvnw spring-boot:run          # starts Postgres from compose.yaml, then the app on http://localhost:8080
 ```
 
-Windows PowerShell: `mvnw.cmd spring-boot:run`.
+Windows PowerShell: `mvnw.cmd spring-boot:run`. Spring Boot's Docker Compose support starts the `postgres` service from `compose.yaml` automatically (or run `docker compose up -d` yourself). Override the connection with `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`.
 
 ## Test
 
@@ -19,7 +21,7 @@ Windows PowerShell: `mvnw.cmd spring-boot:run`.
 ./mvnw test -Dtest=ClassName    # one test class
 ```
 
-No external services are needed: the database is in-memory H2 and its schema is created by the Flyway migrations in `src/main/resources/db/migration`.
+Tests run against a real PostgreSQL 16 container started by Testcontainers (`src/test/resources/config/application.yml` uses the `jdbc:tc:` URL), so Docker must be running. The schema is created by the Flyway migrations in `src/main/resources/db/migration`.
 
 ## Structure
 
