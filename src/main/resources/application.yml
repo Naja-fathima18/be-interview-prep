@@ -17,3 +17,12 @@ spring:
   docker:
     compose:
       lifecycle-management: start-only
+  servlet:
+    multipart:
+      max-file-size: 6MB
+      max-request-size: 7MB
+
+app:
+  file-storage:
+    base-dir: storage/files
+    max-file-size: 5MB
