@@ -106,6 +106,18 @@ class LibraryApiIntegrationTest {
   }
 
   @Test
+  void rejectsSortingByUnknownPropertyWithBadRequest() throws Exception {
+    mockMvc
+        .perform(get("/api/books").param("q", "x").param("sort", "nope"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.detail").value(containsString("nope")));
+    mockMvc.perform(get("/api/books").param("sort", "nope")).andExpect(status().isBadRequest());
+    mockMvc
+        .perform(get("/api/books").param("q", "x").param("sort", "title,desc"))
+        .andExpect(status().isOk());
+  }
+
+  @Test
   void onlyOneOfManyConcurrentBorrowsSucceeds() throws Exception {
     long id = createBook("Dune", "Frank Herbert", "9780441013593");
     int threads = 8;

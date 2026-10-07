@@ -1,21 +1,29 @@
 package com.example.beinterviewprep.library.service;
 
+import com.example.beinterviewprep.common.error.BadRequestException;
 import com.example.beinterviewprep.common.error.ConflictException;
 import com.example.beinterviewprep.common.error.NotFoundException;
 import com.example.beinterviewprep.library.api.BookRequest;
 import com.example.beinterviewprep.library.domain.Book;
 import com.example.beinterviewprep.library.persistence.BookRepository;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
 public class BookService {
+
+  private static final Set<String> SORTABLE_PROPERTIES =
+      new LinkedHashSet<>(List.of("id", "title", "author", "isbn", "publishedYear"));
 
   private final BookRepository bookRepository;
 
@@ -31,6 +39,7 @@ public class BookService {
 
   @Transactional(readOnly = true)
   public Page<Book> search(String query, Pageable pageable) {
+    rejectUnsortableProperties(pageable.getSort());
     if (query == null || query.isBlank()) {
       return bookRepository.findAll(pageable);
     }
@@ -71,6 +80,18 @@ public class BookService {
     } catch (DataIntegrityViolationException ex) {
       throw duplicateIsbn(book.getIsbn());
     }
+  }
+
+  private static void rejectUnsortableProperties(Sort sort) {
+    sort.stream()
+        .map(Sort.Order::getProperty)
+        .filter(property -> !SORTABLE_PROPERTIES.contains(property))
+        .findFirst()
+        .ifPresent(
+            property -> {
+              throw new BadRequestException(
+                  "Cannot sort by '" + property + "'; allowed: " + SORTABLE_PROPERTIES);
+            });
   }
 
   private static String containsPattern(String query) {
