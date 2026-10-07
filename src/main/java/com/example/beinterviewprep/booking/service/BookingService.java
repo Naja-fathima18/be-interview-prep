@@ -2,6 +2,7 @@ package com.example.beinterviewprep.booking.service;
 
 import com.example.beinterviewprep.booking.BookingProperties;
 import com.example.beinterviewprep.booking.domain.Booking;
+import com.example.beinterviewprep.booking.domain.BookingConfirmedEvent;
 import com.example.beinterviewprep.booking.domain.BookingStatus;
 import com.example.beinterviewprep.booking.domain.Doctor;
 import com.example.beinterviewprep.booking.persistence.BookingRepository;
@@ -13,6 +14,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.ConcurrencyFailureException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -27,6 +29,7 @@ public class BookingService {
   private final BookingRepository bookings;
   private final BookingProperties properties;
   private final Clock clock;
+  private final ApplicationEventPublisher events;
 
   @Transactional
   public Booking hold(Long doctorId, LocalDateTime startTime, Long patientId) {
@@ -57,6 +60,7 @@ public class BookingService {
     Booking booking = findOwnedBy(bookingId, patientId);
     booking.confirm(clock.instant());
     flushGuardingAgainstConcurrentChange(bookingId);
+    events.publishEvent(BookingConfirmedEvent.of(booking));
     log.info("Booking {} confirmed", bookingId);
     return booking;
   }

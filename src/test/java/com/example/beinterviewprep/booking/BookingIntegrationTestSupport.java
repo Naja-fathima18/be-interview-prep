@@ -1,6 +1,7 @@
 package com.example.beinterviewprep.booking;
 
 import com.example.beinterviewprep.booking.persistence.BookingRepository;
+import com.example.beinterviewprep.booking.service.BookingNotifier;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -13,6 +14,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @AutoConfigureMockMvc
 @SpringBootTest(properties = "booking.expiry-sweep-interval=1h")
@@ -26,6 +28,7 @@ public abstract class BookingIntegrationTestSupport {
 
   @Autowired protected MutableClock clock;
   @Autowired protected BookingRepository bookingRepository;
+  @MockitoBean protected BookingNotifier bookingNotifier;
 
   @BeforeEach
   void resetBookingState() {
