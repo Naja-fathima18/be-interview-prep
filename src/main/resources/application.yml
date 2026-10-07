@@ -32,3 +32,9 @@ rate-limit:
   window: 1m
   header: X-API-Key
   paths: /api/quotes/**
+
+booking:
+  hold-duration: 5m
+  slot-length: 30m
+  expiry-sweep-interval: 1m
+  clinic-zone: Asia/Kolkata
