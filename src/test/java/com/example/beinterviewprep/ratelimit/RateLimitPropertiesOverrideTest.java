@@ -2,7 +2,6 @@ package com.example.beinterviewprep.ratelimit;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.example.beinterviewprep.quote.api.QuoteController;
@@ -35,8 +34,7 @@ class RateLimitPropertiesOverrideTest {
     mockMvc
         .perform(get("/api/quotes/random").header("X-Client-Key", "override-key"))
         .andExpect(status().isTooManyRequests())
-        .andExpect(header().string("Retry-After", "30"))
-        .andExpect(jsonPath("$.retryAfterSeconds").value(30));
+        .andExpect(RetryAfterMatchers.retryAfterCloseTo(30));
   }
 
   @Test

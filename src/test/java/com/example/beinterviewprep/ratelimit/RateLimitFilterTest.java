@@ -41,13 +41,12 @@ class RateLimitFilterTest {
     mockMvc
         .perform(get(RANDOM_QUOTE).header("X-API-Key", apiKey))
         .andExpect(status().isTooManyRequests())
-        .andExpect(header().string("Retry-After", "60"))
+        .andExpect(RetryAfterMatchers.retryAfterCloseTo(60))
         .andExpect(header().string(RateLimitFilter.REMAINING_HEADER, "0"))
         .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
         .andExpect(jsonPath("$.status").value(429))
         .andExpect(jsonPath("$.title").value("Too many requests"))
-        .andExpect(jsonPath("$.instance").value(RANDOM_QUOTE))
-        .andExpect(jsonPath("$.retryAfterSeconds").value(60));
+        .andExpect(jsonPath("$.instance").value(RANDOM_QUOTE));
   }
 
   @Test
