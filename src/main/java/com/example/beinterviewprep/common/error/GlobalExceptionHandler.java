@@ -4,6 +4,7 @@ import jakarta.validation.ConstraintViolationException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.mapping.PropertyReferenceException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -41,6 +42,15 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     ProblemDetail problem =
         ProblemDetail.forStatusAndDetail(
             HttpStatus.BAD_REQUEST, "Invalid value for parameter '" + ex.getName() + "'");
+    problem.setTitle("Bad request");
+    return problem;
+  }
+
+  @ExceptionHandler(PropertyReferenceException.class)
+  ProblemDetail handleUnknownProperty(PropertyReferenceException ex) {
+    ProblemDetail problem =
+        ProblemDetail.forStatusAndDetail(
+            HttpStatus.BAD_REQUEST, "Unknown property '" + ex.getPropertyName() + "'");
     problem.setTitle("Bad request");
     return problem;
   }
