@@ -15,13 +15,11 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.server.PathContainer;
 import org.springframework.lang.NonNull;
-import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.pattern.PathPattern;
 import org.springframework.web.util.pattern.PathPatternParser;
 
 @Slf4j
-@Component
 public class RateLimitFilter extends OncePerRequestFilter {
 
   static final String LIMIT_HEADER = "X-RateLimit-Limit";
