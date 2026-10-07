@@ -55,6 +55,9 @@ public class BookService {
   @Transactional
   public void delete(Long id) {
     Book book = lockBook(id);
+    if (book.isBorrowed()) {
+      throw new ConflictException("Book " + id + " is currently borrowed and cannot be deleted");
+    }
     bookRepository.delete(book);
   }
 
