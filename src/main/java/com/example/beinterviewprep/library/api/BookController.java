@@ -2,6 +2,7 @@ package com.example.beinterviewprep.library.api;
 
 import com.example.beinterviewprep.library.service.BookService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import java.net.URI;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -32,8 +34,9 @@ public class BookController {
 
   @GetMapping
   public PageResponse<BookResponse> list(
+      @RequestParam(name = "q", required = false) @Size(max = 255) String query,
       @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.ASC) Pageable pageable) {
-    return PageResponse.from(bookService.list(pageable), BookResponse::from);
+    return PageResponse.from(bookService.search(query, pageable), BookResponse::from);
   }
 
   @GetMapping("/{id}")

@@ -5,6 +5,7 @@ import com.example.beinterviewprep.common.error.NotFoundException;
 import com.example.beinterviewprep.library.api.BookRequest;
 import com.example.beinterviewprep.library.domain.Book;
 import com.example.beinterviewprep.library.persistence.BookRepository;
+import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -29,8 +30,11 @@ public class BookService {
   }
 
   @Transactional(readOnly = true)
-  public Page<Book> list(Pageable pageable) {
-    return bookRepository.findAll(pageable);
+  public Page<Book> search(String query, Pageable pageable) {
+    if (query == null || query.isBlank()) {
+      return bookRepository.findAll(pageable);
+    }
+    return bookRepository.searchByTitleOrAuthor(containsPattern(query), pageable);
   }
 
   @Transactional(readOnly = true)
@@ -64,6 +68,17 @@ public class BookService {
     } catch (DataIntegrityViolationException ex) {
       throw duplicateIsbn(book.getIsbn());
     }
+  }
+
+  private static String containsPattern(String query) {
+    String escaped =
+        query
+            .strip()
+            .toLowerCase(Locale.ROOT)
+            .replace("!", "!!")
+            .replace("%", "!%")
+            .replace("_", "!_");
+    return "%" + escaped + "%";
   }
 
   private static ConflictException duplicateIsbn(String isbn) {
