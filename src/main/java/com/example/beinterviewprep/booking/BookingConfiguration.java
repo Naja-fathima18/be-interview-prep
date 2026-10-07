@@ -27,6 +27,7 @@ public class BookingConfiguration {
     executor.setMaxPoolSize(4);
     executor.setQueueCapacity(500);
     executor.setThreadNamePrefix("booking-notify-");
+    executor.setRejectedExecutionHandler(new LogAndDropPolicy());
     executor.setWaitForTasksToCompleteOnShutdown(true);
     executor.setAwaitTerminationSeconds(10);
     return executor;
