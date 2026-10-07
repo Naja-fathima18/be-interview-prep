@@ -4,11 +4,17 @@ import com.example.beinterviewprep.common.error.BadRequestException;
 import com.example.beinterviewprep.common.error.NotFoundException;
 import com.example.beinterviewprep.expense.api.ExpenseRequest;
 import com.example.beinterviewprep.expense.api.ExpenseResponse;
+import com.example.beinterviewprep.expense.api.MonthlySummaryResponse;
 import com.example.beinterviewprep.expense.domain.Category;
 import com.example.beinterviewprep.expense.domain.Expense;
+import com.example.beinterviewprep.expense.persistence.CategoryTotal;
 import com.example.beinterviewprep.expense.persistence.ExpenseRepository;
 import com.example.beinterviewprep.expense.persistence.ExpenseSpecifications;
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
+import java.util.EnumMap;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -20,6 +26,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class ExpenseService {
+
+  private static final BigDecimal ZERO = BigDecimal.ZERO.setScale(Expense.MONEY_SCALE);
 
   private final ExpenseRepository expenseRepository;
 
@@ -59,6 +67,20 @@ public class ExpenseService {
   public void delete(Long id) {
     expenseRepository.delete(findOrThrow(id));
     log.info("Deleted expense {}", id);
+  }
+
+  @Transactional(readOnly = true)
+  public MonthlySummaryResponse summarize(YearMonth month) {
+    Map<Category, BigDecimal> totals = new EnumMap<>(Category.class);
+    for (Category category : Category.values()) {
+      totals.put(category, ZERO);
+    }
+    for (CategoryTotal row :
+        expenseRepository.sumByCategoryBetween(month.atDay(1), month.atEndOfMonth())) {
+      totals.put(row.category(), row.total().setScale(Expense.MONEY_SCALE));
+    }
+    BigDecimal overall = totals.values().stream().reduce(ZERO, BigDecimal::add);
+    return new MonthlySummaryResponse(month, totals, overall);
   }
 
   private Expense findOrThrow(Long id) {

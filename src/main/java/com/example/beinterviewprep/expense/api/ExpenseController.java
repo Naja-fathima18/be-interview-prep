@@ -5,6 +5,7 @@ import com.example.beinterviewprep.expense.service.ExpenseService;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -53,6 +54,11 @@ public class ExpenseController {
       @PageableDefault(size = 50, sort = "date", direction = Sort.Direction.DESC)
           Pageable pageable) {
     return ExpensePageResponse.from(expenseService.list(from, to, category, pageable));
+  }
+
+  @GetMapping("/summary")
+  public MonthlySummaryResponse summary(@RequestParam YearMonth month) {
+    return expenseService.summarize(month);
   }
 
   @PutMapping("/{id}")
