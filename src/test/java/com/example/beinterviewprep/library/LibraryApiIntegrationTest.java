@@ -25,6 +25,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -81,6 +82,32 @@ class LibraryApiIntegrationTest {
 
     mockMvc.perform(delete("/api/books/" + id)).andExpect(status().isNoContent());
     mockMvc.perform(get("/api/books/" + id)).andExpect(status().isNotFound());
+  }
+
+  @Test
+  void updatesBookDetails() throws Exception {
+    long id = createBook("Dune", "Frank Herbert", "9780441013593");
+
+    mockMvc
+        .perform(
+            bookRequest(put("/api/books/" + id), "Dune Messiah", "Frank Herbert", "9780593098233"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(id))
+        .andExpect(jsonPath("$.title").value("Dune Messiah"))
+        .andExpect(jsonPath("$.isbn").value("9780593098233"));
+    mockMvc
+        .perform(get("/api/books/" + id))
+        .andExpect(jsonPath("$.title").value("Dune Messiah"))
+        .andExpect(jsonPath("$.publishedYear").value(1990));
+  }
+
+  @Test
+  void returnsNotFoundWhenBorrowingUnknownBook() throws Exception {
+    mockMvc
+        .perform(borrow(999_999, 42))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.title").value("Resource not found"))
+        .andExpect(jsonPath("$.detail").value("Book 999999 not found"));
   }
 
   @Test
@@ -152,34 +179,38 @@ class LibraryApiIntegrationTest {
     long id = createBook("Dune", "Frank Herbert", "9780441013593");
     int threads = 8;
     ExecutorService pool = Executors.newFixedThreadPool(threads);
-    CountDownLatch start = new CountDownLatch(1);
-    List<Future<Boolean>> results = new ArrayList<>();
-    for (int i = 0; i < threads; i++) {
-      long memberId = i + 1;
-      Callable<Boolean> attempt =
-          () -> {
-            start.await();
-            try {
-              loanService.borrow(id, memberId);
-              return true;
-            } catch (ConflictException ex) {
-              return false;
-            }
-          };
-      results.add(pool.submit(attempt));
-    }
-    start.countDown();
-
     int successes = 0;
-    for (Future<Boolean> result : results) {
-      if (result.get()) {
-        successes++;
+    try {
+      CountDownLatch start = new CountDownLatch(1);
+      List<Future<Boolean>> results = new ArrayList<>();
+      for (int i = 0; i < threads; i++) {
+        long memberId = i + 1;
+        Callable<Boolean> attempt =
+            () -> {
+              start.await();
+              try {
+                loanService.borrow(id, memberId);
+                return true;
+              } catch (ConflictException ex) {
+                return false;
+              }
+            };
+        results.add(pool.submit(attempt));
       }
+      start.countDown();
+      for (Future<Boolean> result : results) {
+        if (result.get(30, TimeUnit.SECONDS)) {
+          successes++;
+        }
+      }
+    } finally {
+      pool.shutdownNow();
     }
-    pool.shutdown();
 
     assertThat(successes).isEqualTo(1);
     assertThat(loanRepository.count()).isEqualTo(1);
+    assertThat(bookRepository.findById(id))
+        .hasValueSatisfying(b -> assertThat(b.isBorrowed()).isTrue());
   }
 
   private long createBook(String title, String author, String isbn) throws Exception {
