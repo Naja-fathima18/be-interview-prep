@@ -36,13 +36,17 @@ public class LoanService {
   }
 
   @Transactional
-  public Loan giveBack(Long bookId) {
+  public Loan giveBack(Long bookId, Long memberId) {
     Book book = lockBook(bookId);
     Loan loan =
         loanRepository
             .findByBookIdAndReturnedAtIsNull(bookId)
             .orElseThrow(
                 () -> new ConflictException("Book " + bookId + " is not currently borrowed"));
+    if (!loan.getMemberId().equals(memberId)) {
+      throw new ConflictException(
+          "Book " + bookId + " is not on loan to member " + memberId + " and cannot be returned");
+    }
     book.markReturned();
     loan.close(Instant.now());
     log.info("Book {} returned, loan {} closed", bookId, loan.getId());

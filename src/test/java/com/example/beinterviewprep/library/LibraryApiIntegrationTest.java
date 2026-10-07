@@ -70,10 +70,14 @@ class LibraryApiIntegrationTest {
     mockMvc.perform(delete("/api/books/" + id)).andExpect(status().isConflict());
 
     mockMvc
-        .perform(post("/api/books/" + id + "/return"))
+        .perform(giveBack(id, 7))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.detail").value(containsString("not on loan to member 7")));
+    mockMvc
+        .perform(giveBack(id, 42))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.returnedAt").exists());
-    mockMvc.perform(post("/api/books/" + id + "/return")).andExpect(status().isConflict());
+    mockMvc.perform(giveBack(id, 42)).andExpect(status().isConflict());
 
     mockMvc.perform(delete("/api/books/" + id)).andExpect(status().isNoContent());
     mockMvc.perform(get("/api/books/" + id)).andExpect(status().isNotFound());
@@ -188,6 +192,12 @@ class LibraryApiIntegrationTest {
             {"title":"%s","author":"%s","isbn":"%s","publishedYear":1990}
             """
                 .formatted(title, author, isbn));
+  }
+
+  private static MockHttpServletRequestBuilder giveBack(long bookId, long memberId) {
+    return post("/api/books/" + bookId + "/return")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content("{\"memberId\":" + memberId + "}");
   }
 
   private static MockHttpServletRequestBuilder borrow(long bookId, long memberId) {

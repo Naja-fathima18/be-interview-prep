@@ -82,7 +82,7 @@ class LoanServiceTest {
     when(bookRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(book));
     when(loanRepository.findByBookIdAndReturnedAtIsNull(1L)).thenReturn(Optional.of(active));
 
-    Loan closed = loanService.giveBack(1L);
+    Loan closed = loanService.giveBack(1L, 42L);
 
     assertThat(closed.getReturnedAt()).isNotNull();
     assertThat(book.isBorrowed()).isFalse();
@@ -102,10 +102,24 @@ class LoanServiceTest {
     when(bookRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(book));
     when(loanRepository.findByBookIdAndReturnedAtIsNull(1L)).thenReturn(Optional.of(active));
 
-    Loan closed = loanService.giveBack(1L);
+    Loan closed = loanService.giveBack(1L, 42L);
 
     assertThat(book.isBorrowed()).isFalse();
     assertThat(closed.getReturnedAt()).isNotNull();
+  }
+
+  @Test
+  void rejectsReturnByMemberWhoDoesNotHoldTheLoan() {
+    book.markBorrowed();
+    Loan active = new Loan(book, 42L, Instant.now());
+    when(bookRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(book));
+    when(loanRepository.findByBookIdAndReturnedAtIsNull(1L)).thenReturn(Optional.of(active));
+
+    assertThatThrownBy(() -> loanService.giveBack(1L, 7L))
+        .isInstanceOf(ConflictException.class)
+        .hasMessageContaining("not on loan to member 7");
+    assertThat(active.getReturnedAt()).isNull();
+    assertThat(book.isBorrowed()).isTrue();
   }
 
   @Test
@@ -113,7 +127,7 @@ class LoanServiceTest {
     when(bookRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(book));
     when(loanRepository.findByBookIdAndReturnedAtIsNull(1L)).thenReturn(Optional.empty());
 
-    assertThatThrownBy(() -> loanService.giveBack(1L))
+    assertThatThrownBy(() -> loanService.giveBack(1L, 42L))
         .isInstanceOf(ConflictException.class)
         .hasMessageContaining("not currently borrowed");
   }

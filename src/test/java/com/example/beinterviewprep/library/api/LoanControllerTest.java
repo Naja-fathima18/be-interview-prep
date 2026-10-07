@@ -58,12 +58,24 @@ class LoanControllerTest {
 
   @Test
   void returnsConflictWhenReturningBookThatIsNotBorrowed() throws Exception {
-    when(loanService.giveBack(5L))
+    when(loanService.giveBack(5L, 42L))
         .thenThrow(new ConflictException("Book 5 is not currently borrowed"));
 
     mockMvc
-        .perform(post("/api/books/5/return"))
+        .perform(
+            post("/api/books/5/return")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"memberId\":42}"))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.detail").value("Book 5 is not currently borrowed"));
+  }
+
+  @Test
+  void rejectsReturnWithoutMemberId() throws Exception {
+    mockMvc
+        .perform(post("/api/books/5/return").contentType(MediaType.APPLICATION_JSON).content("{}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors.memberId").exists());
+    verifyNoInteractions(loanService);
   }
 }

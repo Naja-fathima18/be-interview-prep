@@ -25,7 +25,8 @@ public class LoanController {
   }
 
   @PostMapping("/return")
-  public LoanResponse giveBack(@PathVariable Long bookId) {
-    return LoanResponse.from(loanService.giveBack(bookId));
+  public LoanResponse giveBack(
+      @PathVariable Long bookId, @Valid @RequestBody ReturnRequest request) {
+    return LoanResponse.from(loanService.giveBack(bookId, request.memberId()));
   }
 }
