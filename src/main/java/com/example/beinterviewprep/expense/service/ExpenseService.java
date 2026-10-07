@@ -12,10 +12,13 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.EnumMap;
 import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +28,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class ExpenseService {
 
   private static final BigDecimal ZERO = BigDecimal.ZERO.setScale(Expense.MONEY_SCALE);
+
+  private static final Set<String> SORTABLE_PROPERTIES = Set.of("id", "date", "amount", "category");
+  private static final String TIE_BREAKER = "id";
 
   private final ExpenseRepository expenseRepository;
 
@@ -47,7 +53,8 @@ public class ExpenseService {
     if (from != null && to != null && from.isAfter(to)) {
       throw new BadRequestException("Parameter 'from' must not be after 'to'");
     }
-    return expenseRepository.findAll(ExpenseSpecifications.matching(from, to, category), pageable);
+    return expenseRepository.findAll(
+        ExpenseSpecifications.matching(from, to, category), withStableSort(pageable));
   }
 
   @Transactional
@@ -75,6 +82,22 @@ public class ExpenseService {
     }
     BigDecimal overall = totals.values().stream().reduce(ZERO, BigDecimal::add);
     return new MonthlySummary(month, totals, overall);
+  }
+
+  private static Pageable withStableSort(Pageable pageable) {
+    Sort sort = pageable.getSort();
+    for (Sort.Order order : sort) {
+      if (!SORTABLE_PROPERTIES.contains(order.getProperty())) {
+        throw new BadRequestException(
+            "Cannot sort by '" + order.getProperty() + "'; allowed: " + SORTABLE_PROPERTIES);
+      }
+    }
+    if (sort.getOrderFor(TIE_BREAKER) == null) {
+      sort = sort.and(Sort.by(TIE_BREAKER).descending());
+    }
+    return pageable.isPaged()
+        ? PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort)
+        : Pageable.unpaged(sort);
   }
 
   private Expense findOrThrow(Long id) {

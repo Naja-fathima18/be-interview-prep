@@ -1,6 +1,7 @@
 package com.example.beinterviewprep.expense.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -182,6 +183,15 @@ class ExpenseApiTest {
     mockMvc
         .perform(get("/api/expenses").param("from", "2026-03-12").param("to", "2026-03-10"))
         .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void rejectsSortingByUnknownProperty() throws Exception {
+    mockMvc
+        .perform(get("/api/expenses").param("sort", "foo"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.title").value("Bad request"))
+        .andExpect(jsonPath("$.detail").value(containsString("foo")));
   }
 
   private ResultActions create(String amount, String category, String date) throws Exception {
