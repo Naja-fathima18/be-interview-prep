@@ -1,0 +1,68 @@
+package com.example.beinterviewprep.booking.service;
+
+import com.example.beinterviewprep.booking.BookingProperties;
+import com.example.beinterviewprep.booking.domain.Booking;
+import com.example.beinterviewprep.booking.domain.BookingStatus;
+import com.example.beinterviewprep.booking.domain.Doctor;
+import com.example.beinterviewprep.booking.persistence.BookingRepository;
+import com.example.beinterviewprep.common.error.BadRequestException;
+import com.example.beinterviewprep.common.error.ConflictException;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.ConcurrencyFailureException;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class BookingService {
+
+  private final SlotService slotService;
+  private final BookingRepository bookings;
+  private final BookingProperties properties;
+  private final Clock clock;
+
+  @Transactional
+  public Booking hold(Long doctorId, LocalDateTime startTime, Long patientId) {
+    Doctor doctor = slotService.findDoctor(doctorId);
+    requireBookableSlot(doctor, startTime);
+    Instant now = clock.instant();
+    bookings.expireStaleHoldForSlot(
+        doctorId, startTime, now, BookingStatus.HELD, BookingStatus.EXPIRED);
+    Booking hold =
+        Booking.hold(
+            doctorId,
+            patientId,
+            startTime,
+            startTime.plus(properties.slotLength()),
+            now.plus(properties.holdDuration()),
+            now);
+    try {
+      Booking saved = bookings.saveAndFlush(hold);
+      log.info("Booking {} held for doctor {} at {}", saved.getId(), doctorId, startTime);
+      return saved;
+    } catch (DataIntegrityViolationException | ConcurrencyFailureException e) {
+      throw slotTaken(doctorId, startTime);
+    }
+  }
+
+  private void requireBookableSlot(Doctor doctor, LocalDateTime startTime) {
+    if (!doctor.offersSlotAt(startTime, properties.slotLength())) {
+      throw new BadRequestException(
+          "Doctor " + doctor.getId() + " has no slot starting at " + startTime);
+    }
+    if (!startTime.isAfter(LocalDateTime.now(clock))) {
+      throw new BadRequestException("Slot at " + startTime + " is in the past");
+    }
+  }
+
+  private ConflictException slotTaken(Long doctorId, LocalDateTime startTime) {
+    return new ConflictException(
+        "Slot at " + startTime + " for doctor " + doctorId + " is no longer available");
+  }
+}
