@@ -3,7 +3,6 @@ package com.example.beinterviewprep.library.service;
 import com.example.beinterviewprep.common.error.BadRequestException;
 import com.example.beinterviewprep.common.error.ConflictException;
 import com.example.beinterviewprep.common.error.NotFoundException;
-import com.example.beinterviewprep.library.api.BookRequest;
 import com.example.beinterviewprep.library.domain.Book;
 import com.example.beinterviewprep.library.persistence.BookRepository;
 import java.util.LinkedHashSet;
@@ -30,12 +29,12 @@ public class BookService {
   private final BookRepository bookRepository;
 
   @Transactional
-  public Book create(BookRequest request) {
-    if (bookRepository.existsByIsbn(request.isbn())) {
-      throw duplicateIsbn(request.isbn());
+  public Book create(BookCommand command) {
+    if (bookRepository.existsByIsbn(command.isbn())) {
+      throw duplicateIsbn(command.isbn());
     }
     Book book =
-        new Book(request.title(), request.author(), request.isbn(), request.publishedYear());
+        new Book(command.title(), command.author(), command.isbn(), command.publishedYear());
     return saveEnforcingUniqueIsbn(book);
   }
 
@@ -54,12 +53,12 @@ public class BookService {
   }
 
   @Transactional
-  public Book update(Long id, BookRequest request) {
+  public Book update(Long id, BookCommand command) {
     Book book = lockBook(id);
-    if (bookRepository.existsByIsbnAndIdNot(request.isbn(), id)) {
-      throw duplicateIsbn(request.isbn());
+    if (bookRepository.existsByIsbnAndIdNot(command.isbn(), id)) {
+      throw duplicateIsbn(command.isbn());
     }
-    book.updateDetails(request.title(), request.author(), request.isbn(), request.publishedYear());
+    book.updateDetails(command.title(), command.author(), command.isbn(), command.publishedYear());
     return saveEnforcingUniqueIsbn(book);
   }
 

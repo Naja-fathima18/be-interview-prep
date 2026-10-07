@@ -28,7 +28,7 @@ public class BookController {
 
   @PostMapping
   public ResponseEntity<BookResponse> create(@Valid @RequestBody BookRequest request) {
-    BookResponse created = BookResponse.from(bookService.create(request));
+    BookResponse created = BookResponse.from(bookService.create(request.toCommand()));
     return ResponseEntity.created(URI.create("/api/books/" + created.id())).body(created);
   }
 
@@ -46,7 +46,7 @@ public class BookController {
 
   @PutMapping("/{id}")
   public BookResponse update(@PathVariable Long id, @Valid @RequestBody BookRequest request) {
-    return BookResponse.from(bookService.update(id, request));
+    return BookResponse.from(bookService.update(id, request.toCommand()));
   }
 
   @DeleteMapping("/{id}")

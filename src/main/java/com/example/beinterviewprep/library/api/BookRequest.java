@@ -1,5 +1,6 @@
 package com.example.beinterviewprep.library.api;
 
+import com.example.beinterviewprep.library.service.BookCommand;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -14,4 +15,9 @@ public record BookRequest(
             regexp = "^([0-9]{9}[0-9X]|97[89][0-9]{10})$",
             message = "must be a 10 or 13 character ISBN without hyphens")
         String isbn,
-    @NotNull @Positive @NotFutureYear Integer publishedYear) {}
+    @NotNull @Positive @NotFutureYear Integer publishedYear) {
+
+  public BookCommand toCommand() {
+    return new BookCommand(title, author, isbn, publishedYear);
+  }
+}

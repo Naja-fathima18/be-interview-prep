@@ -7,7 +7,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.example.beinterviewprep.common.error.ConflictException;
-import com.example.beinterviewprep.library.api.BookRequest;
 import com.example.beinterviewprep.library.domain.Book;
 import com.example.beinterviewprep.library.persistence.BookRepository;
 import java.sql.SQLException;
@@ -26,14 +25,14 @@ class BookServiceTest {
   @Mock BookRepository bookRepository;
   @InjectMocks BookService bookService;
 
-  private final BookRequest request =
-      new BookRequest("Dune", "Frank Herbert", "9780441013593", 1965);
+  private final BookCommand command =
+      new BookCommand("Dune", "Frank Herbert", "9780441013593", 1965);
 
   @Test
   void rejectsCreatingBookWithExistingIsbn() {
     when(bookRepository.existsByIsbn("9780441013593")).thenReturn(true);
 
-    assertThatThrownBy(() -> bookService.create(request))
+    assertThatThrownBy(() -> bookService.create(command))
         .isInstanceOf(ConflictException.class)
         .hasMessageContaining("9780441013593");
     verify(bookRepository, never()).saveAndFlush(any());
@@ -44,7 +43,7 @@ class BookServiceTest {
     when(bookRepository.existsByIsbn("9780441013593")).thenReturn(false);
     when(bookRepository.saveAndFlush(any())).thenThrow(integrityViolation("uk_book_isbn"));
 
-    assertThatThrownBy(() -> bookService.create(request)).isInstanceOf(ConflictException.class);
+    assertThatThrownBy(() -> bookService.create(command)).isInstanceOf(ConflictException.class);
   }
 
   @Test
@@ -53,7 +52,7 @@ class BookServiceTest {
     DataIntegrityViolationException unrelated = integrityViolation("book_title_not_null");
     when(bookRepository.saveAndFlush(any())).thenThrow(unrelated);
 
-    assertThatThrownBy(() -> bookService.create(request)).isSameAs(unrelated);
+    assertThatThrownBy(() -> bookService.create(command)).isSameAs(unrelated);
   }
 
   @Test
