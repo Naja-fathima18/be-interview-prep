@@ -50,6 +50,10 @@ public class BookingService {
     ClinicTime clinicNow = ClinicTime.now(clock);
     requireBookableSlot(doctor, startTime, clinicNow.local());
     Instant now = clinicNow.instant();
+    if (bookings.isSlotOccupied(
+        doctorId, startTime, now, BookingStatus.HELD, BookingStatus.CONFIRMED)) {
+      throw slotTaken(doctorId, startTime);
+    }
     bookings.expireStaleHoldForSlot(
         doctorId, startTime, now, BookingStatus.HELD, BookingStatus.EXPIRED);
     Booking hold =
