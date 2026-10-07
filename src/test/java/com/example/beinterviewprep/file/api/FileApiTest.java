@@ -2,6 +2,9 @@ package com.example.beinterviewprep.file.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -11,8 +14,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.example.beinterviewprep.file.persistence.StoredFileRepository;
+import com.example.beinterviewprep.file.service.FileStorage;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -25,10 +31,12 @@ import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
@@ -52,7 +60,8 @@ class FileApiTest {
 
   @Autowired MockMvc mockMvc;
   @Autowired ObjectMapper objectMapper;
-  @Autowired StoredFileRepository repository;
+  @MockitoSpyBean StoredFileRepository repository;
+  @MockitoSpyBean FileStorage storage;
 
   @AfterEach
   void cleanUp() throws Exception {
@@ -196,6 +205,34 @@ class FileApiTest {
     assertThat(storageDir().resolve(id)).doesNotExist();
     mockMvc.perform(get("/api/files/{id}", id)).andExpect(status().isNotFound());
     mockMvc.perform(get("/api/files/{id}/download", id)).andExpect(status().isNotFound());
+  }
+
+  @Test
+  void removesStoredContentWhenRecordCannotBeSaved() throws Exception {
+    doThrow(new DataAccessResourceFailureException("database down"))
+        .when(repository)
+        .saveAndFlush(any());
+
+    upload(file("photo.png", "image/png", bytesStartingWith(PNG_SIGNATURE, 10)))
+        .andExpect(status().isInternalServerError());
+
+    assertThat(storedFiles()).isEmpty();
+  }
+
+  @Test
+  void keepsRecordAndContentWhenContentCannotBeDeleted() throws Exception {
+    String id =
+        json(upload(file("kept.png", "image/png", bytesStartingWith(PNG_SIGNATURE, 10))))
+            .get("id")
+            .asText();
+    doThrow(new UncheckedIOException(new IOException("file locked")))
+        .when(storage)
+        .delete(anyString());
+
+    mockMvc.perform(delete("/api/files/{id}", id)).andExpect(status().isInternalServerError());
+
+    assertThat(repository.existsById(UUID.fromString(id))).isTrue();
+    assertThat(storageDir().resolve(id)).exists();
   }
 
   @Test

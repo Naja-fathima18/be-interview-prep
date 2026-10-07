@@ -4,6 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.SequenceInputStream;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
@@ -38,6 +42,25 @@ class FileStorageTest {
         .isInstanceOf(IllegalArgumentException.class);
     assertThatThrownBy(() -> storage.delete(".")).isInstanceOf(IllegalArgumentException.class);
     assertThat(tempDir.resolve("outside")).doesNotExist();
+  }
+
+  @Test
+  void removesPartiallyWrittenFileWhenCopyFails() {
+    FileStorage storage = storageIn(tempDir.resolve("files"));
+    InputStream failingMidway =
+        new SequenceInputStream(
+            new ByteArrayInputStream(new byte[1024]),
+            new InputStream() {
+              @Override
+              public int read() throws IOException {
+                throw new IOException("connection reset");
+              }
+            });
+
+    assertThatThrownBy(() -> storage.write("partial", failingMidway))
+        .isInstanceOf(UncheckedIOException.class);
+
+    assertThat(tempDir.resolve("files/partial")).doesNotExist();
   }
 
   private static FileStorage storageIn(Path dir) {

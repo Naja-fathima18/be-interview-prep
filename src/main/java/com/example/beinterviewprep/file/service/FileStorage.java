@@ -27,6 +27,7 @@ public class FileStorage {
       Files.createDirectories(baseDir);
       Files.copy(content, target, StandardCopyOption.REPLACE_EXISTING);
     } catch (IOException e) {
+      deleteQuietly(storageKey);
       throw new UncheckedIOException("Could not store file " + storageKey, e);
     }
   }

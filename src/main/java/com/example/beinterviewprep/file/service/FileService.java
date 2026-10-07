@@ -16,6 +16,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 @Slf4j
@@ -43,12 +45,8 @@ public class FileService {
         new StoredFile(
             UUID.randomUUID(), originalName, type.mediaType(), upload.getSize(), Instant.now());
     writeContent(upload, file);
-    try {
-      repository.saveAndFlush(file);
-    } catch (RuntimeException e) {
-      storage.deleteQuietly(file.storageKey());
-      throw e;
-    }
+    deleteContentOnRollback(file.storageKey());
+    repository.saveAndFlush(file);
     log.info("Stored file {} ({}, {} bytes)", file.getId(), type, file.getSizeBytes());
     return StoredFileView.from(file);
   }
@@ -109,6 +107,18 @@ public class FileService {
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
+  }
+
+  private void deleteContentOnRollback(String storageKey) {
+    TransactionSynchronizationManager.registerSynchronization(
+        new TransactionSynchronization() {
+          @Override
+          public void afterCompletion(int status) {
+            if (status == STATUS_ROLLED_BACK) {
+              storage.deleteQuietly(storageKey);
+            }
+          }
+        });
   }
 
   private void writeContent(MultipartFile upload, StoredFile file) {
