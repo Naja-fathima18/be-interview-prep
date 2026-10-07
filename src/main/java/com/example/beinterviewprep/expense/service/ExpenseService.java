@@ -2,9 +2,6 @@ package com.example.beinterviewprep.expense.service;
 
 import com.example.beinterviewprep.common.error.BadRequestException;
 import com.example.beinterviewprep.common.error.NotFoundException;
-import com.example.beinterviewprep.expense.api.ExpenseRequest;
-import com.example.beinterviewprep.expense.api.ExpenseResponse;
-import com.example.beinterviewprep.expense.api.MonthlySummaryResponse;
 import com.example.beinterviewprep.expense.domain.Category;
 import com.example.beinterviewprep.expense.domain.Expense;
 import com.example.beinterviewprep.expense.persistence.CategoryTotal;
@@ -32,35 +29,32 @@ public class ExpenseService {
   private final ExpenseRepository expenseRepository;
 
   @Transactional
-  public ExpenseResponse create(ExpenseRequest request) {
+  public Expense create(ExpenseCommand command) {
     Expense expense =
         expenseRepository.save(
-            new Expense(request.amount(), request.category(), request.date(), request.note()));
+            new Expense(command.amount(), command.category(), command.date(), command.note()));
     log.info("Created expense {}", expense.getId());
-    return ExpenseResponse.from(expense);
+    return expense;
   }
 
   @Transactional(readOnly = true)
-  public ExpenseResponse get(Long id) {
-    return ExpenseResponse.from(findOrThrow(id));
+  public Expense get(Long id) {
+    return findOrThrow(id);
   }
 
   @Transactional(readOnly = true)
-  public Page<ExpenseResponse> list(
-      LocalDate from, LocalDate to, Category category, Pageable pageable) {
+  public Page<Expense> list(LocalDate from, LocalDate to, Category category, Pageable pageable) {
     if (from != null && to != null && from.isAfter(to)) {
       throw new BadRequestException("Parameter 'from' must not be after 'to'");
     }
-    return expenseRepository
-        .findAll(ExpenseSpecifications.matching(from, to, category), pageable)
-        .map(ExpenseResponse::from);
+    return expenseRepository.findAll(ExpenseSpecifications.matching(from, to, category), pageable);
   }
 
   @Transactional
-  public ExpenseResponse update(Long id, ExpenseRequest request) {
+  public Expense update(Long id, ExpenseCommand command) {
     Expense expense = findOrThrow(id);
-    expense.update(request.amount(), request.category(), request.date(), request.note());
-    return ExpenseResponse.from(expense);
+    expense.update(command.amount(), command.category(), command.date(), command.note());
+    return expense;
   }
 
   @Transactional
@@ -70,7 +64,7 @@ public class ExpenseService {
   }
 
   @Transactional(readOnly = true)
-  public MonthlySummaryResponse summarize(YearMonth month) {
+  public MonthlySummary summarize(YearMonth month) {
     Map<Category, BigDecimal> totals = new EnumMap<>(Category.class);
     for (Category category : Category.values()) {
       totals.put(category, ZERO);
@@ -80,7 +74,7 @@ public class ExpenseService {
       totals.put(row.category(), row.total().setScale(Expense.MONEY_SCALE));
     }
     BigDecimal overall = totals.values().stream().reduce(ZERO, BigDecimal::add);
-    return new MonthlySummaryResponse(month, totals, overall);
+    return new MonthlySummary(month, totals, overall);
   }
 
   private Expense findOrThrow(Long id) {

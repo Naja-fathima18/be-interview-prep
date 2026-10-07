@@ -32,7 +32,7 @@ public class ExpenseController {
 
   @PostMapping
   public ResponseEntity<ExpenseResponse> create(@Valid @RequestBody ExpenseRequest request) {
-    ExpenseResponse created = expenseService.create(request);
+    ExpenseResponse created = ExpenseResponse.from(expenseService.create(request.toCommand()));
     URI location =
         ServletUriComponentsBuilder.fromCurrentRequest()
             .path("/{id}")
@@ -43,7 +43,7 @@ public class ExpenseController {
 
   @GetMapping("/{id}")
   public ExpenseResponse get(@PathVariable Long id) {
-    return expenseService.get(id);
+    return ExpenseResponse.from(expenseService.get(id));
   }
 
   @GetMapping
@@ -53,17 +53,18 @@ public class ExpenseController {
       @RequestParam(required = false) Category category,
       @PageableDefault(size = 50, sort = "date", direction = Sort.Direction.DESC)
           Pageable pageable) {
-    return ExpensePageResponse.from(expenseService.list(from, to, category, pageable));
+    return ExpensePageResponse.from(
+        expenseService.list(from, to, category, pageable).map(ExpenseResponse::from));
   }
 
   @GetMapping("/summary")
   public MonthlySummaryResponse summary(@RequestParam YearMonth month) {
-    return expenseService.summarize(month);
+    return MonthlySummaryResponse.from(expenseService.summarize(month));
   }
 
   @PutMapping("/{id}")
   public ExpenseResponse update(@PathVariable Long id, @Valid @RequestBody ExpenseRequest request) {
-    return expenseService.update(id, request);
+    return ExpenseResponse.from(expenseService.update(id, request.toCommand()));
   }
 
   @DeleteMapping("/{id}")
