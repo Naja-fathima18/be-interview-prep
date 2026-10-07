@@ -10,7 +10,9 @@ import com.example.beinterviewprep.common.error.ConflictException;
 import com.example.beinterviewprep.library.api.BookRequest;
 import com.example.beinterviewprep.library.domain.Book;
 import com.example.beinterviewprep.library.persistence.BookRepository;
+import java.sql.SQLException;
 import java.util.Optional;
+import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -40,9 +42,18 @@ class BookServiceTest {
   @Test
   void translatesUniqueConstraintRaceIntoConflict() {
     when(bookRepository.existsByIsbn("9780441013593")).thenReturn(false);
-    when(bookRepository.saveAndFlush(any())).thenThrow(new DataIntegrityViolationException("uk"));
+    when(bookRepository.saveAndFlush(any())).thenThrow(integrityViolation("uk_book_isbn"));
 
     assertThatThrownBy(() -> bookService.create(request)).isInstanceOf(ConflictException.class);
+  }
+
+  @Test
+  void rethrowsIntegrityViolationOfOtherConstraints() {
+    when(bookRepository.existsByIsbn("9780441013593")).thenReturn(false);
+    DataIntegrityViolationException unrelated = integrityViolation("book_title_not_null");
+    when(bookRepository.saveAndFlush(any())).thenThrow(unrelated);
+
+    assertThatThrownBy(() -> bookService.create(request)).isSameAs(unrelated);
   }
 
   @Test
@@ -55,5 +66,11 @@ class BookServiceTest {
         .isInstanceOf(ConflictException.class)
         .hasMessageContaining("currently borrowed");
     verify(bookRepository, never()).delete(any());
+  }
+
+  private static DataIntegrityViolationException integrityViolation(String constraint) {
+    return new DataIntegrityViolationException(
+        "violation",
+        new ConstraintViolationException("violation", new SQLException("violation"), constraint));
   }
 }

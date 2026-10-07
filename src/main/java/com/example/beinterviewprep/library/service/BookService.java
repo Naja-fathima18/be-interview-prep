@@ -25,6 +25,8 @@ public class BookService {
   private static final Set<String> SORTABLE_PROPERTIES =
       new LinkedHashSet<>(List.of("id", "title", "author", "isbn", "publishedYear"));
 
+  private static final String ISBN_CONSTRAINT = "uk_book_isbn";
+
   private final BookRepository bookRepository;
 
   @Transactional
@@ -78,7 +80,10 @@ public class BookService {
     try {
       return bookRepository.saveAndFlush(book);
     } catch (DataIntegrityViolationException ex) {
-      throw duplicateIsbn(book.getIsbn());
+      if (ConstraintViolations.violates(ex, ISBN_CONSTRAINT)) {
+        throw duplicateIsbn(book.getIsbn());
+      }
+      throw ex;
     }
   }
 

@@ -127,6 +127,16 @@ class LibraryApiIntegrationTest {
   }
 
   @Test
+  void isbnUniqueConstraintIsNamedForTranslation() {
+    bookRepository.saveAndFlush(new Book("Dune", "Frank Herbert", "9780441013593", 1965));
+
+    assertThatThrownBy(
+            () -> bookRepository.saveAndFlush(new Book("Other", "Someone", "9780441013593", 1990)))
+        .isInstanceOf(DataIntegrityViolationException.class)
+        .hasMessageContaining("uk_book_isbn");
+  }
+
+  @Test
   void databaseAllowsOnlyOneOpenLoanPerBook() throws Exception {
     long id = createBook("Dune", "Frank Herbert", "9780441013593");
     Book book = bookRepository.findById(id).orElseThrow();
