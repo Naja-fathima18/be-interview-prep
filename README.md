@@ -34,7 +34,7 @@ Package-by-feature under `com.example.beinterviewprep`; each feature has `api/` 
 | 1 | Library API | https://github.com/Naja-fathima18/be-interview-prep/pull/1 |
 | 2 | Expense Tracker | https://github.com/Naja-fathima18/be-interview-prep/pull/2 |
 | 3 | File Upload Service | https://github.com/Naja-fathima18/be-interview-prep/pull/3 |
-| 4 | API Rate Limiting | |
+| 4 | API Rate Limiting | https://github.com/Naja-fathima18/be-interview-prep/pull/4 |
 | 5 | Appointment Booking | |
 
 Video:
