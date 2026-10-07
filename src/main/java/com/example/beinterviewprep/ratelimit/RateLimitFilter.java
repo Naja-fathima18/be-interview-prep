@@ -27,13 +27,13 @@ public class RateLimitFilter extends OncePerRequestFilter {
   static final String LIMIT_HEADER = "X-RateLimit-Limit";
   static final String REMAINING_HEADER = "X-RateLimit-Remaining";
 
-  private final FixedWindowRateLimiter limiter;
+  private final SlidingWindowRateLimiter limiter;
   private final RateLimitProperties properties;
   private final ObjectMapper objectMapper;
   private final List<PathPattern> protectedPaths;
 
   public RateLimitFilter(
-      FixedWindowRateLimiter limiter, RateLimitProperties properties, ObjectMapper objectMapper) {
+      SlidingWindowRateLimiter limiter, RateLimitProperties properties, ObjectMapper objectMapper) {
     this.limiter = limiter;
     this.properties = properties;
     this.objectMapper = objectMapper;

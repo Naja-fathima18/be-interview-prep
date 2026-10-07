@@ -13,13 +13,14 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 
-class FixedWindowRateLimiterTest {
+class SlidingWindowRateLimiterTest {
 
   private static final int LIMIT = 10;
   private static final Duration WINDOW = Duration.ofMinutes(1);
 
   private final MutableClock clock = new MutableClock(Instant.parse("2026-01-01T00:00:00Z"));
-  private final FixedWindowRateLimiter limiter = new FixedWindowRateLimiter(LIMIT, WINDOW, clock);
+  private final SlidingWindowRateLimiter limiter =
+      new SlidingWindowRateLimiter(LIMIT, WINDOW, clock);
 
   @Test
   void allowsRequestsUpToLimitAndRejectsTheNext() {
@@ -62,6 +63,50 @@ class FixedWindowRateLimiterTest {
     RateLimitDecision decision = limiter.tryAcquire("key");
     assertThat(decision.allowed()).isTrue();
     assertThat(decision.remaining()).isEqualTo(LIMIT - 1);
+  }
+
+  @Test
+  void rejectsBurstStraddlingWindowBoundaryOnlyFreeingExpiredSlots() {
+    limiter.tryAcquire("key");
+    clock.advance(Duration.ofMillis(59_900));
+    for (int i = 0; i < LIMIT - 1; i++) {
+      assertThat(limiter.tryAcquire("key").allowed()).isTrue();
+    }
+    clock.advance(Duration.ofMillis(100));
+
+    long allowedAtBoundary = 0;
+    for (int i = 0; i < LIMIT; i++) {
+      if (limiter.tryAcquire("key").allowed()) {
+        allowedAtBoundary++;
+      }
+    }
+
+    assertThat(allowedAtBoundary).isEqualTo(1);
+    RateLimitDecision rejected = limiter.tryAcquire("key");
+    assertThat(rejected.allowed()).isFalse();
+    assertThat(rejected.retryAfter()).isEqualTo(Duration.ofMillis(59_900));
+    assertThat(rejected.retryAfterSeconds()).isEqualTo(60);
+  }
+
+  @Test
+  void rejectsSecondFullBurstArrivingJustAfterFirst() {
+    clock.advance(Duration.ofMillis(59_900));
+    exhaust("key");
+    clock.advance(Duration.ofMillis(100));
+
+    assertThat(limiter.tryAcquire("key").allowed()).isFalse();
+  }
+
+  @Test
+  void keepsKeyThatWasActiveWithinWindowDuringEviction() {
+    limiter.tryAcquire("alice");
+    clock.advance(Duration.ofSeconds(30));
+    limiter.tryAcquire("bob");
+    clock.advance(Duration.ofSeconds(30));
+
+    limiter.tryAcquire("carol");
+
+    assertThat(limiter.trackedKeys()).isEqualTo(2);
   }
 
   @Test

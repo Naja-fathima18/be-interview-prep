@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Configuration;
 class RateLimitConfig {
 
   @Bean
-  FixedWindowRateLimiter fixedWindowRateLimiter(RateLimitProperties properties) {
-    return new FixedWindowRateLimiter(properties.limit(), properties.window(), Clock.systemUTC());
+  SlidingWindowRateLimiter slidingWindowRateLimiter(RateLimitProperties properties) {
+    return new SlidingWindowRateLimiter(properties.limit(), properties.window(), Clock.systemUTC());
   }
 }
