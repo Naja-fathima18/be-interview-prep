@@ -53,7 +53,7 @@ public class FileService {
 
   @Transactional(readOnly = true)
   public Page<StoredFileView> list(Pageable pageable) {
-    return repository.findAll(pageable).map(StoredFileView::from);
+    return repository.findAll(FileListOrder.toEntityPageable(pageable)).map(StoredFileView::from);
   }
 
   @Transactional(readOnly = true)

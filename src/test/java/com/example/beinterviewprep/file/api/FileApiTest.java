@@ -1,6 +1,7 @@
 package com.example.beinterviewprep.file.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -13,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.example.beinterviewprep.file.domain.StoredFile;
 import com.example.beinterviewprep.file.persistence.StoredFileRepository;
 import com.example.beinterviewprep.file.service.FileStorage;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -21,6 +23,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
@@ -179,17 +182,64 @@ class FileApiTest {
 
   @Test
   void listsUploadedFilesWithMetadata() throws Exception {
-    upload(file("a.png", "image/png", bytesStartingWith(PNG_SIGNATURE, 1)));
-    upload(file("b.pdf", "application/pdf", bytesStartingWith(PDF_SIGNATURE, 1)));
+    String id =
+        json(upload(file("a.png", "image/png", bytesStartingWith(PNG_SIGNATURE, 1))))
+            .get("id")
+            .asText();
 
     mockMvc
         .perform(get("/api/files"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.totalElements").value(2))
-        .andExpect(jsonPath("$.content[0].originalName").value("b.pdf"))
-        .andExpect(jsonPath("$.content[1].originalName").value("a.png"))
-        .andExpect(jsonPath("$.content[1].contentType").value("image/png"))
-        .andExpect(jsonPath("$.content[1].size").value(PNG_SIGNATURE.length + 1));
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].id").value(id))
+        .andExpect(jsonPath("$.content[0].originalName").value("a.png"))
+        .andExpect(jsonPath("$.content[0].contentType").value("image/png"))
+        .andExpect(jsonPath("$.content[0].size").value(PNG_SIGNATURE.length + 1))
+        .andExpect(jsonPath("$.content[0].uploadedAt").exists());
+  }
+
+  @Test
+  void listsNewestFirstAndBreaksTimestampTiesById() throws Exception {
+    Instant older = Instant.parse("2026-01-01T10:00:00Z");
+    Instant newer = Instant.parse("2026-01-02T10:00:00Z");
+    saveRecord("00000000-0000-0000-0000-000000000003", "old.png", 30, older);
+    saveRecord("00000000-0000-0000-0000-000000000002", "tie-b.png", 10, newer);
+    saveRecord("00000000-0000-0000-0000-000000000001", "tie-a.png", 20, newer);
+
+    mockMvc
+        .perform(get("/api/files"))
+        .andExpect(status().isOk())
+        .andExpect(
+            jsonPath("$.content[*].originalName")
+                .value(contains("tie-a.png", "tie-b.png", "old.png")));
+  }
+
+  @Test
+  void sortsByAllowedPropertyUsingApiNames() throws Exception {
+    Instant now = Instant.parse("2026-01-01T10:00:00Z");
+    saveRecord("00000000-0000-0000-0000-000000000001", "big.png", 300, now);
+    saveRecord("00000000-0000-0000-0000-000000000002", "small.png", 100, now);
+
+    mockMvc
+        .perform(get("/api/files").param("sort", "size,asc"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[*].originalName").value(contains("small.png", "big.png")));
+  }
+
+  @Test
+  void rejectsSortByUnknownPropertyWithBadRequest() throws Exception {
+    mockMvc
+        .perform(get("/api/files").param("sort", "nope"))
+        .andExpect(status().isBadRequest())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+        .andExpect(jsonPath("$.detail", containsString("nope")));
+  }
+
+  @Test
+  void rejectsSortByInternalColumnName() throws Exception {
+    mockMvc
+        .perform(get("/api/files").param("sort", "sizeBytes"))
+        .andExpect(status().isBadRequest());
   }
 
   @Test
@@ -239,6 +289,10 @@ class FileApiTest {
   void returnsNotFoundForUnknownFileAndBadRequestForMalformedId() throws Exception {
     mockMvc.perform(delete("/api/files/{id}", UUID.randomUUID())).andExpect(status().isNotFound());
     mockMvc.perform(get("/api/files/not-a-uuid")).andExpect(status().isBadRequest());
+  }
+
+  private void saveRecord(String id, String name, long size, Instant uploadedAt) {
+    repository.save(new StoredFile(UUID.fromString(id), name, "image/png", size, uploadedAt));
   }
 
   private ResultActions upload(MockMultipartFile file) throws Exception {
